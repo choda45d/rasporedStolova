@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Распоред столова</title>
+<style>
+:root{--bg:#2a2226;--card:#352b30;--line:#b4486f;--txt:#f3e9ee;--mut:#a8979f;--hi:#ffd166}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,"Segoe UI",Arial,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 16px;border-bottom:1px solid #4a3a41}
+h1{margin:0 0 8px;font-size:18px;font-weight:600}
+.sw{position:relative;max-width:520px}
+input{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--txt);font-size:16px;outline:none}
+input:focus{box-shadow:0 0 0 2px #b4486f66}
+#res{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;max-height:320px;overflow:auto;display:none;z-index:10}
+.r{padding:9px 14px;display:flex;justify-content:space-between;gap:10px;cursor:pointer;border-bottom:1px solid #4a3a41}
+.r:last-child{border:0}.r:hover{background:#443840}
+.r b{color:var(--hi);white-space:nowrap}
+.none{padding:12px 14px;color:var(--mut)}
+main{display:flex;flex-wrap:wrap;gap:16px;padding:12px 16px;align-items:flex-start}
+#mapw{flex:1 1 480px;max-width:760px}
+svg{width:100%;height:auto;display:block;background:#2a2226;border-radius:12px}
+#panel{flex:1 1 280px;max-width:420px;background:var(--card);border:1px solid #4a3a41;border-radius:12px;padding:16px;position:sticky;top:90px}
+#panel h2{margin:0 0 4px;font-size:20px}
+#panel .sub{color:var(--mut);font-size:14px;margin-bottom:10px}
+#panel ol{margin:0;padding-left:26px}
+#panel li{padding:4px 0;font-size:16px}
+#panel li.m{color:var(--hi);font-weight:700}
+.empty{color:var(--mut)}
+.tbl{cursor:pointer}
+.tbl .c{fill:var(--bg);stroke:var(--line);stroke-width:1.4}
+.tbl:hover .c{fill:#3a2d34}
+.tbl.sel .c{stroke:var(--hi);stroke-width:2.4;fill:#46353d}
+.tbl.hit .c{stroke:var(--hi);stroke-width:2.4}
+.tbl.hit{filter:drop-shadow(0 0 7px #ffd166)}
+.seat{fill:none;stroke:var(--line);stroke-width:1;stroke-dasharray:2.5 2}
+.seat.f{fill:var(--line);stroke:none}
+.seat.m{fill:var(--hi);stroke:none}
+.tn{fill:var(--txt);font-size:9px;font-weight:700;text-anchor:middle;pointer-events:none}
+.tc{fill:#9ec5ff;font-size:8.5px;text-anchor:middle;pointer-events:none}
+.pod{cursor:default}
+@media(max-width:720px){#panel{position:static;max-width:none;flex-basis:100%}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Распоред столова</h1>
+  <div class="sw">
+    <input id="q" type="search" placeholder="Укуцајте име или презиме…" autocomplete="off">
+    <div id="res"></div>
+  </div>
+</header>
+<main>
+  <div id="mapw"><svg id="map" viewBox="0 0 650 770"></svg></div>
+  <div id="panel"><h2>Изаберите сто</h2><div class="sub">Кликните на сто на мапи или потражите госта.</div></div>
+</main>
+<script>
+const G={
+1:"Јово Миличевић,Јована Миличевић,Милан Давидовић,Михајло Сушић,Анђела Сушић,Нађа Симић,Лука Милер,Емилија Милер",
+2:"Јованка Давидовић,Саша Давидовић,Ненад Давидовић,Тамара Ђурковић,Томас Милер,Ивана Милер,Јаков Милер,Мирјана Курбалија,Стево Курбалија,Жељка Радивој,Марко Радивој",
+3:"Верица Ивковић,Даница Миличевић,Петра Стевановић,Славко Стевановић,Биљана Крнета,Николина Крнета,Стефан Крнета,Живко Панић,Нада Панић,Злата Владисављевић",
+4:"Раденко Јовановић,Владан Јовановић,Тања Јовановић,Жарко Николић,Марко Николић,Бранко Николић,Милан Горановић,Југославка Горановић",
+5:"Мирослав Миличевић,Весна Миличевић,Дамјан Курбалија,Бранко Ћајић,Бранислав Илијић,Нина Манојловић,Наташа Бојанић,Бранислав Бојанић,Сања Божјаковић,Данијел Божјаковић",
+6:"Мира Босанчић,Анка Андрић,Добрисав Андрић,Зоран Делић,Ивана Познан,Мирослав Дринић,Радмила Павловић,Драган Павловић,Мићо Торбић,Ивана Јане Торбић",
+7:"Драган Јовановић,Мирјана Јовановић,Биљана Милинковић,Милош Милинковић,Мирослав Милинковић,Ален Ђокић,Ана Ђокић,Немања Ђокић",
+8:"Ања Продић,Вукашин Продић,Александра Томић,Анђела Фаркаш,Марија Булат,Лазар Руварац,Никола Станковић,Тодор Томић,Лука Стоканов",
+9:"Далибор Јовановић,Дуња Продић,Огњен Миглински,Милица Милинковић,Филип Вујић,Лука Павловић,Кристина Павловић,Анђела Бојанић,Ања Бојанић",
+10:"Срћан Козбашић,Далија Козбашић,Драган Вуколић,Зорица Вуколић,Горан Маринковић,Сузана Маринковић,Бранислав Батањац,Тања Батањац,Огњен Батањац,Марко Шокчанић",
+11:"Жељка Сушић,Радослав Сушић,Нађа Сушић,Миланка Симић,Мирослав Симић,Марија Илић,Младен Илић,Радица Пузић Томић,Бранислав Томић",
+12:"Димитрије Коларић,Илија Мириловић,Огњен Костић,Михајло Матић,Максим Зец,Марко Ћулибрк,Стефан Лазарвић,Алекса Димитријевић,Матеј Мита Ђурђевић",
+13:"Теа Вулетић,Елена Максимовић,Душан Жунић,Матеја Видовић,Давид Видовић,Петар Јевремовић,Милош Симић,Матеј Марковић,Мирослав Каролић",
+14:"Бранислав Јевтић,Марија Јевтић,Младен Манојловић,Милка Манојловић,Саша Тодоровић,Изабела Тодоровић,Дарко Дринић,Оливера Миленковић,Милорад Столески,Драгана Столески,Славко Милаковић,Мирјана Трзин"
+};
+// tables: id, label, x, y
+const T=[
+ ["1","Сто 1",73,95],["2","Сто 2",76,230],["3","Сто 3",79,348],["4","Сто 4",73,477],
+ ["5","Сто 5",172,163],["6","Сто 6",181,308],["7","Сто 7",181,435],
+ ["ф","Фотограф",90,656],
+ ["8","Сто 8",446,125],["9","Сто 9",445,243],["10","Сто 10",452,494],["11","Сто 11",451,610],
+ ["12","Сто 12",553,68],["13","Сто 13",553,194],["м","Музика",570,473],["14","Сто 14",560,583]
+];
+const guests={};T.forEach(t=>guests[t[0]]=G[t[0]]?G[t[0]].split(","):[]);
+const NS="http://www.w3.org/2000/svg";
+const svg=document.getElementById("map");
+function el(n,a,p){const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e}
+const groups={};
+T.forEach(([id,label,x,y])=>{
+  const n=guests[id].length,cap=Math.max(10,n);
+  const g=el("g",{class:"tbl",transform:`translate(${x},${y})`});
+  g.dataset.id=id;
+  const seats=[];
+  for(let i=0;i<cap;i++){
+    const a=-Math.PI/2+2*Math.PI*i/cap;
+    seats.push(el("circle",{class:"seat"+(i<n?" f":""),cx:(46*Math.cos(a)).toFixed(1),cy:(46*Math.sin(a)).toFixed(1),r:7},g));
+  }
+  el("circle",{class:"c",r:33},g);
+  const t1=el("text",{class:"tn",y:-1},g);t1.textContent=label;
+  const t2=el("text",{class:"tc",y:10},g);t2.textContent=n+" / "+cap;
+  g.addEventListener("click",()=>select(id));
+  groups[id]={g,seats};
+});
+// podijum
+const pg=el("g",{class:"pod",transform:"translate(530,302)"});
+const cols=["#2bb8c9","#d4578f","#2bb8c9","#d4578f","#eca50c","#7b45e8","#eca50c","#7b45e8","#2bb8c9","#d4578f","#2bb8c9","#d4578f","#eca50c","#7b45e8","#eca50c","#7b45e8"];
+el("clipPath",{id:"pc"},pg).appendChild(Object.assign(document.createElementNS(NS,"rect"),{}));
+const cp=pg.querySelector("rect");cp.setAttribute("width",100);cp.setAttribute("height",100);cp.setAttribute("rx",12);
+const pi=el("g",{"clip-path":"url(#pc)"},pg);
+cols.forEach((c,i)=>el("rect",{x:(i%4)*25,y:Math.floor(i/4)*25,width:25,height:25,fill:c},pi));
+const pt=el("text",{x:50,y:50,"text-anchor":"middle",fill:"#fff","font-size":10.5,"font-weight":700},pg);pt.textContent="Подијум";
+const pt2=el("text",{x:50,y:63,"text-anchor":"middle",fill:"#fff","font-size":8},pg);pt2.textContent="(бенд)";
+
+const panel=document.getElementById("panel");
+let cur=null;
+function select(id,mark){
+  if(cur)groups[cur].g.classList.remove("sel");
+  cur=id;groups[id].g.classList.add("sel");
+  const label=T.find(t=>t[0]===id)[1],list=guests[id];
+  panel.innerHTML=`<h2>${label}</h2><div class="sub">${list.length} гост${list.length===1?"":"а"}</div>`+
+    (list.length?`<ol>${list.map(n=>`<li class="${n===mark?"m":""}">${n}</li>`).join("")}</ol>`:`<div class="empty">Нема додељених гостију.</div>`);
+  if(mark&&window.innerWidth<=720)panel.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+// pretraga
+const map={a:"а",b:"б",c:"ц",č:"ч",ć:"ћ",d:"д",đ:"ђ",e:"е",f:"ф",g:"г",h:"х",i:"и",j:"ј",k:"к",l:"л",m:"м",n:"н",o:"о",p:"п",r:"р",s:"с",š:"ш",t:"т",u:"у",v:"в",z:"з",ž:"ж"};
+function cyr(s){
+  s=s.toLowerCase().replace(/dž/g,"џ").replace(/lj/g,"љ").replace(/nj/g,"њ").replace(/dj/g,"ђ");
+  return s.replace(/[a-zčćđšž]/g,c=>map[c]||c);
+}
+const all=[];
+Object.keys(guests).forEach(id=>guests[id].forEach(n=>all.push({n,id,low:n.toLowerCase()})));
+const q=document.getElementById("q"),res=document.getElementById("res");
+function search(){
+  const v=q.value.trim();
+  Object.values(groups).forEach(o=>{o.g.classList.remove("hit");o.seats.forEach(s=>s.classList.remove("m"))});
+  if(!v){res.style.display="none";return}
+  const toks=cyr(v).split(/\s+/).filter(Boolean);
+  const hits=all.filter(a=>toks.every(t=>a.low.includes(t)));
+  res.style.display="block";
+  if(!hits.length){res.innerHTML='<div class="none">Нема резултата.</div>';return}
+  res.innerHTML=hits.slice(0,30).map((h,i)=>`<div class="r" data-i="${i}"><span>${h.n}</span><b>${T.find(t=>t[0]===h.id)[1]}</b></div>`).join("");
+  hits.forEach(h=>{
+    const o=groups[h.id];o.g.classList.add("hit");
+    const idx=guests[h.id].indexOf(h.n);if(o.seats[idx])o.seats[idx].classList.add("m");
+  });
+  res.querySelectorAll(".r").forEach(r=>r.addEventListener("click",()=>{
+    const h=hits[+r.dataset.i];select(h.id,h.n);res.style.display="none";
+  }));
+  if(hits.length===1||new Set(hits.map(h=>h.id)).size===1)select(hits[0].id,hits.length===1?hits[0].n:null);
+}
+q.addEventListener("input",search);
+document.addEventListener("click",e=>{if(!e.target.closest(".sw"))res.style.display="none"});
+q.addEventListener("focus",()=>{if(q.value.trim())search()});
+</script>
+</body>
+</html>
